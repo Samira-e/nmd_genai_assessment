@@ -1,0 +1,8 @@
+# Copy this to terraform.tfvars and fill in your values
+candidate_name = "your-name"
+application    = "nmd-genai-your-name"
+aws_profile    = "nmd-codescreen"
+aws_region     = "us-west-2"
+
+# Backend config — set your state key:
+# terraform init -backend-config="key=genai-assessment/your-name/terraform.tfstate"

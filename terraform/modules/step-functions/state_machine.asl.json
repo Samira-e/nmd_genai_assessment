@@ -1,0 +1,67 @@
+{
+  "Comment": "GenAI document processing pipeline",
+  "StartAt": "Preprocess",
+  "States": {
+    "Preprocess": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${preprocess_arn}",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.preprocess_result",
+      "ResultSelector": {
+        "document_id.$": "$.Payload.document_id",
+        "s3_bucket.$": "$.Payload.s3_bucket",
+        "s3_key.$": "$.Payload.s3_key",
+        "title.$": "$.Payload.title",
+        "content.$": "$.Payload.content",
+        "source.$": "$.Payload.source",
+        "status.$": "$.Payload.status"
+      },
+      "Next": "Classify"
+    },
+    "Classify": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${classify_arn}",
+        "Payload.$": "$.preprocess_result"
+      },
+      "ResultPath": "$.classify_result",
+      "ResultSelector": {
+        "document_type.$": "$.Payload.document_type",
+        "confidence.$": "$.Payload.classification_confidence"
+      },
+      "Next": "Extract"
+    },
+    "Extract": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${extract_arn}",
+        "Payload.$": "$.preprocess_result"
+      },
+      "ResultPath": "$.extract_result",
+      "ResultSelector": {
+        "extracted_fields.$": "$.Payload.extracted_fields",
+        "confidence.$": "$.Payload.extraction_confidence"
+      },
+      "Next": "Aggregate"
+    },
+    "Aggregate": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${aggregate_arn}",
+        "Payload.$": "$"
+      },
+      "ResultSelector": {
+        "document_id.$": "$.Payload.document_id",
+        "document_type.$": "$.Payload.document_type",
+        "status.$": "$.Payload.status"
+      },
+      "End": true
+    }
+  }
+}
