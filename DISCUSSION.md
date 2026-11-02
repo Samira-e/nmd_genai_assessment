@@ -138,7 +138,31 @@ Consider security, error handling, observability, testing, CI/CD, and infrastruc
 
 ### 4. Terraform — Adding a Pipeline Step
 
-A new "validate" Lambda needs to be added to the pipeline between Extract and Aggregate. It will validate the extracted fields against a schema before writing results. List every file you'd need to change and what you'd add to each.
+ In their repo, each Lambda is written out by hand (not in a loop), so a new step touches about 10 files.
+
+File → Add
+
+src/tasks/validate.py (new) → validate_fields(event): checks each field's type and format with a Pydantic model per document type; returns is_valid and a list of errors
+
+src/lambdas/validate/handler.py (new) →Same 3-line pattern as the other handlers: log, then call validate_fields(event)
+
+tests/test_tasks.py →Tests for valid data, a missing field, and a wrong format
+
+terraform/modules/lambda/main.tf →A new log group and a new aws_lambda_function "validate" with handler lambdas.validate.handler.handler; no Bedrock or S3 access needed
+
+terraform/modules/lambda/outputs.tf →validate_arn
+
+terraform/live/candidate/main.tf →Pass validate_lambda_arn = module.lambda.validate_arn to the Step Functions module
+
+terraform/modules/step-functions/variables.tf → A validate_lambda_arn variable
+
+terraform/modules/step-functions/main.tf → Add the ARN to the invoke permission list and to the templatefile values
+
+terraform/modules/step-functions/state_machine.asl.json → Extract's Next becomes Validate; a new Validate state with input from $.extract_result, ResultPath $.validate_result, Next Aggregate
+
+Makefile → Add validate to the update-lambdas loop
+
+
 
 **Your answer:**
 `
