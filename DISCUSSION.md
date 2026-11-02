@@ -33,7 +33,15 @@ s3://nmd-genai-samira-esfandyari-documents/results/cybersecurity-advisory.json
 How would you improve the classification prompt to handle ambiguous documents that could match multiple types? What techniques would you use to ensure consistent JSON output from the LLM?
 
 **Your answer:**
+**Ambiguous documents:**
+* Give a one-line definition and a short example for each type in the prompt.
+* Ask the model for a second-choice type and the evidence it used.
+* Send low-confidence results (for example below 0.8) to human review instead of guessing.
 
+**Consistent JSON:**
+* In the prompt: the exact JSON shape and "reply with JSON only".
+* In the code: take the JSON between the first "{" and last "}", accept only the allowed types (otherwise "unknown"), and keep confidence between 0 and 1. This is what my "parse_json_reply" and validation do.
+* Stronger option: Bedrock tool use with a JSON schema, which forces structured output.
 ### 4. Error Handling
 
 How would you handle Bedrock throttling (429 errors) in a production pipeline? What retry strategy would you implement, and how would it interact with Step Functions' built-in error handling?
