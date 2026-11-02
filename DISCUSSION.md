@@ -24,7 +24,10 @@ If you could not complete the assessment or got stuck at any point, what went wr
 Paste the S3 URI to one of your result files (e.g., "s3://nmd-genai-<your-name>-documents/results/<document-id>.json`).
 
 **Your answer:**
+s3://nmd-genai-samira-esfandyari-documents/results/cybersecurity-advisory.json
 
+* Classified as "cybersecurity_advisory" (0.98 confidence).
+* Extracted severity, CVE IDs, affected products and mitigation steps (0.95 confidence).
 ### 3. Prompt Engineering
 
 How would you improve the classification prompt to handle ambiguous documents that could match multiple types? What techniques would you use to ensure consistent JSON output from the LLM?
