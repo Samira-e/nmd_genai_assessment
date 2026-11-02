@@ -98,8 +98,18 @@ def classify_document(event: dict) -> dict:
         logger.error("Can't parse classification reply for %s", document_id)
         data = {}
 
+    # Only accept the allowed types, and keep confidence between 0 and 1
+    document_type = data.get("document_type")
+    if document_type not in DOCUMENT_TYPES:
+        document_type = "unknown"
+
+    try:
+        confidence = min(1.0, max(0.0, float(data.get("confidence", 0.0))))
+    except (TypeError, ValueError):
+        confidence = 0.0
+
     return {
         "document_id": document_id,
-        "document_type": data.get("document_type", "unknown"),
-        "classification_confidence": data.get("confidence", 0.0),
+        "document_type": document_type,
+        "classification_confidence": confidence,
     }
