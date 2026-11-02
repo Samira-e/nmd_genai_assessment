@@ -10,6 +10,29 @@ logger = logging.getLogger(__name__)
 
 CLASSIFY_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.anthropic.claude-haiku-5-5")
 
+DOCUMENT_TYPES = {
+    "cybersecurity_advisory": "A security advisory about vulnerabilities, exploits or patches.",
+    "drug_approval": "A regulatory notice approving or reviewing a drug or medical product.",
+    "airworthiness_directive": "An aviation authority directive requiring inspection or repair of aircraft.",
+    "financial_filing": "A company financial report or regulatory filing (e.g. 10-K, 10-Q, earnings).",
+    "unknown": "None of the above, or not enough information to decide.",
+}
+SYSTEM_PROMPT = (
+    "You are a document classifier. Classify the document into exactly one of the allowed types. "
+    "Reply with a single JSON object only, no other text."
+)
+
+
+def build_prompt(title: str, content: str) -> str:
+    """Build user prompt: allowed types, expected JSON shape, and the document."""
+    types_list = "\n".join(f"- {name}: {desc}" for name, desc in DOCUMENT_TYPES.items())
+    return (
+        f"Allowed document types:\n{types_list}\n\n"
+        "Return JSON in exactly this shape:\n"
+        '{"document_type": "<one of the allowed types>", "confidence": <number between 0 and 1>}\n\n'
+        f"<document>\nTitle: {title}\n\n{content}\n</document>"
+    )
+
 
 def classify_document(event: dict) -> dict:
     """Classify a document using Bedrock LLM.
