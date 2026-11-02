@@ -43,8 +43,13 @@ def aggregate_results(event: dict) -> dict:
     # 3. Return the summary dict
     #
     # Hint: Use get_s3_client().put_object(...)
-
-    raise NotImplementedError(
-        "aggregate_results() is not implemented. "
-        "Write the summary JSON to S3 at results/{document_id}.json and return it."
+    key = f"results/{document_id}.json"
+    get_s3_client().put_object(
+        Bucket=s3_bucket,
+        Key=key,
+        Body=json.dumps(summary, indent=2),
+        ContentType="application/json",
     )
+    logger.info("Wrote results to s3://%s/%s", s3_bucket, key)
+
+    return summary
