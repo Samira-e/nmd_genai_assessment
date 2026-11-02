@@ -85,6 +85,56 @@ Write a prioritized list of changes organized by:
 Consider security, error handling, observability, testing, CI/CD, and infrastructure hardening.
 
 **Your answer:**
+1. Must-fix before production: what would block a launch?
+
+**Security issue:**
+
+* Bedrock permission: Lambda can call any model in any region (should limit to one model). “modules/lambda/main.tf” 
+* S3 bucket Encryption: uses only AWS default encryption, not the client own key(KMS) → “modules/s3/main.tf”
+* Container image scanning:  Images are never scanned for vulnerabilities → “modules/ecr/main.tf”
+
+**Error handling issue:**
+
+* No retries or failure handling: one throttle or a bad reply fails the whole document, and nobody is alerted → “terraform/modules/step-functions/state_machine.asl.json”
+
+**Data quality issue:**
+
+* The model’s output is saved without a check: clients receive wrong or random values as if they were correct → “src/tasks/aggregate.py”
+
+**Deployment issue:**
+
+* Every image is tagged “latest", and tags can be overwritten: you can’t tell which code is running, or roll back a bad release. “terraform/live/candidate/main.tf”
+* "make update-lambdas” does nothing: it looks for Terraform outputs that don’t exist, prints “Lambda functions updated,” but no Lambda gets the new code. “Makefile”, “terraform/live/candidate/outputs.tf”
+
+**Infrastructure issue:**
+
+*  One command can delete every image: destroying the repository deletes all images, no way back. ”modules/ecr/main.tf”
+
+2. Should-fix in the first sprint: important but not blocking
+
+* Testing and CI/CD: real tests with a fake Bedrock client instead of placeholders
+
+                                         GitHub Actions runs tests and terraform plan on every pull request, with prod approval and OIDC (no stored keys).
+
+* Observability: * CloudWatch alarms and a dashboard
+
+                                * document_id in every log
+
+                                * model and prompt version in each result.
+
+* Capacity and cost: confirm Bedrock quotas
+
+             limit concurrent documents and skip duplicates (DE-4).
+
+3. Nice-to-have for long-term maintainability: plan for later
+
+* Quality: a labelled test set to check accuracy before prompt or model changes
+* Environments: separate dev, test, prod.
+* Housekeeping:  S3 lifecycle rule (versioning keeps old copies forever). 
+
+            Faster Docker builds: install packages before copying code, and remove --no-cache.
+
+
 
 ### 4. Terraform — Adding a Pipeline Step
 
