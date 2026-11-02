@@ -13,10 +13,15 @@ Aim for 2-4 sentences per answer unless otherwise noted. We value clarity and de
 If you could not complete the assessment or got stuck at any point, what went wrong and what did you try to troubleshoot?
 
 **Your answer:**
-
+* **First "terraform apply" failed:** the Lambdas could not be created because the Docker image was not in ECR yet. I built and pushed the image, then ran "apply" again.
+* **"make format" removed imports I needed:** it runs "ruff check --fix", which deleted imports that looked unused because the functions were not written yet. I restored the files and formatted only the file I changed.
+* **Extract did not get the document type:** the state machine sent only the Preprocess output to Extract, so every document became "unknown". I added "document_type" from the Classify result to the Extract input.
+* **"make update-lambdas" did nothing:** it looks for Terraform outputs that do not exist and hides the error. I updated the Lambdas with "aws lambda update-function-code" instead.
+* **First pipeline run failed at Classify:** Bedrock returned "temperature is deprecated for this model". I found it in the Step Functions execution history and removed "temperature".
+* **My IAM user could not list Bedrock models:** not a blocker, because the Lambda role calls Bedrock, not my user.
 ### 2. Proof of Completion
 
-Paste the S3 URI to one of your result files (e.g., `s3://nmd-genai-<your-name>-documents/results/<document-id>.json`).
+Paste the S3 URI to one of your result files (e.g., "s3://nmd-genai-<your-name>-documents/results/<document-id>.json`).
 
 **Your answer:**
 
@@ -50,7 +55,7 @@ Consider security, error handling, observability, testing, CI/CD, and infrastruc
 A new "validate" Lambda needs to be added to the pipeline between Extract and Aggregate. It will validate the extracted fields against a schema before writing results. List every file you'd need to change and what you'd add to each.
 
 **Your answer:**
-
+`
 ---
 
 ## Solutions Architect Track
@@ -104,9 +109,52 @@ This processes one document per Step Functions execution. Design a batch pipelin
 How would you monitor this pipeline in production? What metrics, alerts, and dashboards would you build? A downstream team also needs to know which model version and prompt version produced each extraction. How would you track that lineage?
 
 **Your answer:**
+**Monitoring**
+The code today: no alarms or dashboard. Step Functions logs only errors.
+
+What to change:
+
+Everything is on one CloudWatch dashboard, and every log line carries the document_id, so you can trace one document through all four steps.
+
+* Pipeline: runs started, status (succeeded, failed), time per document → Alert when the failure rate goes above a set level.
+* Lambda: errors, throttles, duration → Alert when errors or throttles keep happening.
+* Bedrock: calls, throttles, response time, tokens used (cost per document) → Alert when throttling continues or cost per document jumps.
+* Data quality: average confidence, how often fields come back empty, “needs review” count → Alert when confidence drops suddenly (often a sign the prompt or input changed).
+
+**Lineage for the downstream team**
+
+The code today: the result file has no record of which model or prompt made it.
+
+**What to change: add to every result:**
+
+* model_Id, prompt_version, code_version(image tag),stepfuction_execution_id, source_file_s3_version_id, processing_time 
+
+Result: results can be queried in Athena.
+
 
 ### DE-4. Caching & Deduplication
 
 If the same document is uploaded twice, the pipeline currently processes it again at full cost. How would you implement caching or deduplication? Consider where in the pipeline to check, what to use as a cache key, and the tradeoffs of different storage options (DynamoDB, S3 metadata, Elasticache).
 
 **Your answer:**
+**Where:** in Preprocess, right after reading the file and before any Bedrock call, so a duplicate has no cost.
+
+**key**: Document content hash + model ID + prompt version (makes the pipeline idempotent: the same document is processed only once).
+
+**store:** DynamoDB, with conditional write (save if this key doesn't exist). It's atomic, so two identical uploads at the same moment can't both pass. 
+
+  **DynamoDB:**
+
+Pros: Atomic check, serverless, can expire old keys automatically (TTL)
+Cons: One more table to manage
+
+  **S3 metadata:**
+
+Pros: Nothing new to run
+Cons: No atomic check, so two uploads at once can both slip (needs a lookup per file)
+
+  **ElastiCache:**
+
+Pros: Very fast
+Cons: Not durable, needs a VPC and a running cluster, overkill for this volume
+
