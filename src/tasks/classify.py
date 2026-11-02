@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 
 CLASSIFY_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.anthropic.claude-haiku-5-5")
 
+# Expected document types: cybersecurity_advisory, drug_approval,
+#   airworthiness_directive, financial_filing, unknown
 DOCUMENT_TYPES = {
     "cybersecurity_advisory": "A security advisory about vulnerabilities, exploits or patches.",
     "drug_approval": "A regulatory notice approving or reviewing a drug or medical product.",
@@ -17,6 +19,7 @@ DOCUMENT_TYPES = {
     "financial_filing": "A company financial report or regulatory filing (e.g. 10-K, 10-Q, earnings).",
     "unknown": "None of the above, or not enough information to decide.",
 }
+# 1. Build a prompt that asks the LLM to classify the document
 SYSTEM_PROMPT = (
     "You are a document classifier. Classify the document into exactly one of the allowed types. "
     "Reply with a single JSON object only, no other text."
@@ -34,6 +37,7 @@ def build_prompt(title: str, content: str) -> str:
     )
 
 
+# 3. Parse the response to extract document_type and confidence
 def parse_json_reply(text: str) -> dict:
     """Extract the JSON object from the model reply"""
     start = text.find("{")
@@ -59,15 +63,12 @@ def classify_document(event: dict) -> dict:
     document_id = event["document_id"]
     content = event.get("content", "")
     logger.info("Classifying document: %s", document_id)
+    title = event.get("title", "")
 
     # TODO: Implement Bedrock classification
-    # 1. Build a prompt that asks the LLM to classify the document
+
     # 2. Call Bedrock InvokeModel with the prompt
-    # 3. Parse the response to extract document_type and confidence
-    #
-    # Expected document types: cybersecurity_advisory, drug_approval,
-    #   airworthiness_directive, financial_filing, unknown
-    #
+    bedrock = get_bedrock_client()
     # Hint: Use the Messages API format for Claude models:
     #   bedrock.invoke_model(
     #       modelId=CLASSIFY_MODEL_ID,
@@ -77,8 +78,28 @@ def classify_document(event: dict) -> dict:
     #           "messages": [{"role": "user", "content": prompt}]
     #       })
     #   )
-
-    raise NotImplementedError(
-        "classify_document() is not implemented. "
-        "Call Bedrock to classify the document and return document_type + confidence."
+    response = bedrock.invoke_model(
+        modelId=CLASSIFY_MODEL_ID,
+        body=json.dumps(
+            {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 256,
+                "temperature": 0,
+                "system": SYSTEM_PROMPT,
+                "messages": [{"role": "user", "content": build_prompt(title, content)}],
+            }
+        ),
     )
+    reply = json.loads(response["body"].read())["content"][0]["text"]
+
+    try:
+        data = parse_json_reply(reply)
+    except (ValueError, json.JSONDecodeError):
+        logger.error("Can't parse classification reply for %s", document_id)
+        data = {}
+
+    return {
+        "document_id": document_id,
+        "document_type": data.get("document_type", "unknown"),
+        "classification_confidence": data.get("confidence", 0.0),
+    }
