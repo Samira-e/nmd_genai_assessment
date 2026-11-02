@@ -54,9 +54,7 @@ The code today:
 
 What to change:
 
-* Retry on Classify and Extract: wait longer each time (2s, 4s, 8s…, up to 5 retries) 
-
-                  with a random extra wait so all documents don’t retry at the same moment (exponential backoff and jitter).
+* Retry on Classify and Extract: wait longer each time (2s, 4s, 8s…, up to 5 retries) with a random extra wait so all documents don’t retry at the same moment (exponential backoff and jitter).
 
 * Catch: anything that still fails goes to a failure path (dead letter queue with an alert).
 
@@ -75,9 +73,7 @@ What to change:
 The problem is 2 layers multiplied:
 
 * 3 tries per run × 6 runs (first run + 5 retries) = can be 18 Bedrock calls for one document.
-* Fix at high volume: keep the client’s retries small
-
-              Limit how many documents run at once, below the Bedrock quota.
+* Fix at high volume: keep the client’s retries small, and limit how many documents run at once, below the Bedrock quota.
 
 
 
@@ -121,22 +117,18 @@ Consider security, error handling, observability, testing, CI/CD, and infrastruc
 2. Should-fix in the first sprint: important but not blocking
 
 * Testing and CI/CD: real tests with a fake Bedrock client instead of placeholders
+GitHub Actions runs tests and terraform plan on every pull request, with prod approval and OIDC (no stored keys).
 
-                                         GitHub Actions runs tests and terraform plan on every pull request, with prod approval and OIDC (no stored keys).
-
-* Observability: * CloudWatch alarms and a dashboard
-
-                                * document_id in every log
-
-                                * model and prompt version in each result.
+* Observability:CloudWatch alarms and a dashboard
+document_id in every log
+model and prompt version in each result.
 
 * Capacity and cost: confirm Bedrock quotas
-
-             limit concurrent documents and skip duplicates (DE-4).
+limit concurrent documents and skip duplicates (DE-4).
 
 3. Nice-to-have for long-term maintainability: plan for later
 
-* Quality: a labelled test set to check accuracy before prompt or model changes
+Quality: a labelled test set to check accuracy before prompt or model changes
 * Environments: separate dev, test, prod.
 * Housekeeping: S3 lifecycle rule (versioning keeps old copies forever).
 * Faster Docker builds: install packages before copying code, and remove --no-cache.
@@ -144,6 +136,9 @@ Consider security, error handling, observability, testing, CI/CD, and infrastruc
 
 
 ### 4. Terraform — Adding a Pipeline Step
+
+A new "validate" Lambda needs to be added to the pipeline between Extract and Aggregate. It will validate the extracted fields against a schema before writing results. List every file you'd need to change and what you'd add to each.
+
 **Your answer:**
 * Improvement: defining the Lambdas with one "for_each" over a list of steps would turn adding a step into a one-line change instead of editing about 10 files.
 * src/tasks/validate.py (new): "validate_fields(event)" checks each field's type and format per document type and returns "is_valid" plus a list of errors.
