@@ -173,7 +173,6 @@ Makefile → Add validate to the update-lambdas loop
 
 
 **Your answer:**
-`
 ---
 
 ## Solutions Architect Track
