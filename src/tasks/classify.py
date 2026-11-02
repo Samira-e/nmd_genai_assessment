@@ -4,6 +4,7 @@ import json
 import logging
 import os
 
+from common.parsing import parse_json_reply
 from common.aws import get_bedrock_client
 
 logger = logging.getLogger(__name__)
@@ -33,15 +34,6 @@ def build_prompt(title: str, content: str) -> str:
         '{"document_type": "<one of the allowed types>", "confidence": <number between 0 and 1>}\n\n'
         f"<document>\nTitle: {title}\n\n{content}\n</document>"
     )
-
-
-def parse_json_reply(text: str) -> dict:
-    """Extract the JSON object from the model reply"""
-    start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end <= start:
-        raise ValueError(f"No JSON object found in model reply: {text[:200]!r}")
-    return json.loads(text[start : end + 1])
 
 
 def classify_document(event: dict) -> dict:
