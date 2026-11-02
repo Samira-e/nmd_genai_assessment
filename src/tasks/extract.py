@@ -8,14 +8,9 @@ from common.parsing import parse_json_reply
 from common.aws import get_bedrock_client
 
 logger = logging.getLogger(__name__)
-# 1. Build a prompt that asks the LLM to extract fields based on document_type
+
 EXTRACT_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.anthropic.claude-haiku-5-5")
-# Expected fields by document type:
-#   cybersecurity_advisory: severity, cve_ids, affected_products, mitigation_steps
-#   drug_approval: drug_name, indication, approval_date, applicant, dosage
-#   airworthiness_directive: ad_number, affected_aircraft, compliance_deadline, required_action
-#   financial_filing: company_name, filing_date, event_type, revenue, net_income
-#
+
 FIELDS_BY_TYPE = {
     "cybersecurity_advisory": ["severity", "cve_ids", "affected_products", "mitigation_steps"],
     "drug_approval": ["drug_name", "indication", "approval_date", "applicant", "dosage"],
@@ -83,7 +78,7 @@ def extract_fields(event: dict) -> dict:
     except (ValueError, json.JSONDecodeError):
         logger.error("Can't parse extraction reply for %s", document_id)
         data = {}
-    # Return format: {"extracted_fields": {...}, "extraction_confidence": 0.0-1.0}
+
     return {
         "document_id": document_id,
         "extracted_fields": data.get("extracted_fields", {}),
