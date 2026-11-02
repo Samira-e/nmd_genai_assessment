@@ -10,10 +10,7 @@ logger = logging.getLogger(__name__)
 
 def aggregate_results(event: dict) -> dict:
     """Aggregate extraction results and write summary to S3.
-
-    The candidate must implement writing the pipeline results to S3 as a JSON
-    file in the results/ prefix.
-
+    
     Args:
         event: Full pipeline state with preprocess, classify, and extract results.
 
@@ -37,12 +34,6 @@ def aggregate_results(event: dict) -> dict:
         "status": "completed",
     }
 
-    # TODO: Write the summary to S3 at results/{document_id}.json
-    # 1. Serialize summary as JSON
-    # 2. Put the object to s3://{s3_bucket}/results/{document_id}.json
-    # 3. Return the summary dict
-    #
-    # Hint: Use get_s3_client().put_object(...)
     key = f"results/{document_id}.json"
     get_s3_client().put_object(
         Bucket=s3_bucket,
