@@ -4,6 +4,7 @@ import json
 import logging
 import os
 
+from common.parsing import parse_json_reply
 from common.aws import get_bedrock_client
 
 logger = logging.getLogger(__name__)
@@ -54,16 +55,37 @@ def extract_fields(event: dict) -> dict:
     """
     document_id = event["document_id"]
     content = event.get("content", "")
+    title = event.get("title", "")
     document_type = event.get("document_type", "unknown")
     logger.info("Extracting fields from: %s (type: %s)", document_id, document_type)
+    fields = FIELDS_BY_TYPE.get(document_type)
+    if not fields:
+        # Unknown type: nothing to extract, so skip the Bedrock call
+        return {"document_id": document_id, "extracted_fields": {}, "extraction_confidence": 0.0}
 
-    # TODO: Implement Bedrock field extraction
-
-    # 2. Call Bedrock InvokeModel with the prompt
-    # 3. Parse the JSON response to extract structured fields
-
-    # Return format: {"extracted_fields": {...}, "extraction_confidence": 0.0-1.0}
-
-    raise NotImplementedError(
-        "extract_fields() is not implemented. Call Bedrock to extract structured fields based on the document type."
+    bedrock = get_bedrock_client()
+    response = bedrock.invoke_model(
+        modelId=EXTRACT_MODEL_ID,
+        body=json.dumps(
+            {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 1024,
+                "temperature": 0,
+                "system": SYSTEM_PROMPT,
+                "messages": [{"role": "user", "content": build_prompt(document_type, fields, title, content)}],
+            }
+        ),
     )
+    reply = json.loads(response["body"].read())["content"][0]["text"]
+
+    try:
+        data = parse_json_reply(reply)
+    except (ValueError, json.JSONDecodeError):
+        logger.error("Can't parse extraction reply for %s", document_id)
+        data = {}
+    # Return format: {"extracted_fields": {...}, "extraction_confidence": 0.0-1.0}
+    return {
+        "document_id": document_id,
+        "extracted_fields": data.get("extracted_fields", {}),
+        "extraction_confidence": data.get("confidence", 0.0),
+    }
