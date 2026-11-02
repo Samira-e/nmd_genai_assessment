@@ -145,6 +145,7 @@ Consider security, error handling, observability, testing, CI/CD, and infrastruc
 
 
 ### 4. Terraform — Adding a Pipeline Step
+**Your answer:**
 * Improvement: defining the Lambdas with one "for_each" over a list of steps would turn adding a step into a one-line change instead of editing about 10 files.
 * src/tasks/validate.py (new): "validate_fields(event)" checks each field's type and format per document type and returns "is_valid" plus a list of errors.
 * src/lambdas/validate/handler.py (new): same small handler pattern as the others.
@@ -157,7 +158,7 @@ Consider security, error handling, observability, testing, CI/CD, and infrastruc
 * terraform/modules/step-functions/state_machine.asl.json: Extract's "Next" becomes "Validate"; a new "Validate" state with "Next": "Aggregate".
 * Makefile: add "validate" to the "update-lambdas" loop.
 
-**Your answer:**
+
 ---
 
 ## Solutions Architect Track
