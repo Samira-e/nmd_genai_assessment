@@ -40,7 +40,8 @@ def extract_fields(event: dict) -> dict:
     """Extract structured fields from document content using Bedrock.
 
     The candidate must implement the Bedrock API call to extract key fields
-    based on the document type. Different document types have different fields.
+    based on the document type. Different document types have different fields.(done)
+    Asks Bedrock for the fields expected for this document type and keeps only those fields.
 
     Args:
         event: Input with document content and classification.
@@ -79,8 +80,18 @@ def extract_fields(event: dict) -> dict:
         logger.error("Can't parse extraction reply for %s", document_id)
         data = {}
 
+    extracted = data.get("extracted_fields")
+    if not isinstance(extracted, dict):
+        extracted = {}
+    extracted = {name: extracted.get(name) for name in fields}
+
+    try:
+        confidence = min(1.0, max(0.0, float(data.get("confidence", 0.0))))
+    except (TypeError, ValueError):
+        confidence = 0.0
+
     return {
         "document_id": document_id,
-        "extracted_fields": data.get("extracted_fields", {}),
-        "extraction_confidence": data.get("confidence", 0.0),
+        "extracted_fields": extracted,
+        "extraction_confidence": confidence,
     }
