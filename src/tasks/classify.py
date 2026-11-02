@@ -62,7 +62,6 @@ def classify_document(event: dict) -> dict:
             {
                 "anthropic_version": "bedrock-2023-05-31",
                 "max_tokens": 256,
-                "temperature": 0,
                 "system": SYSTEM_PROMPT,
                 "messages": [{"role": "user", "content": build_prompt(title, content)}],
             }
