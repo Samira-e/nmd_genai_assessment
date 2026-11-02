@@ -28,6 +28,18 @@ SYSTEM_PROMPT = (
 )
 
 
+def build_prompt(document_type: str, fields: list[str], title: str, content: str) -> str:
+    """Build user prompt: fields to extract, expected JSON shape, and the document"""
+    fields_json = ", ".join(f'"{name}": ...' for name in fields)
+    return (
+        f"Document type: {document_type}\n"
+        f"Extract these fields: {', '.join(fields)}\n\n"
+        "Return JSON in exactly this shape:\n"
+        f'{{"extracted_fields": {{{fields_json}}}, "confidence": <number between 0 and 1>}}\n\n'
+        f"<document>\nTitle: {title}\n\n{content}\n</document>"
+    )
+
+
 def extract_fields(event: dict) -> dict:
     """Extract structured fields from document content using Bedrock.
 
