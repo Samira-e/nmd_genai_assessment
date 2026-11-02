@@ -34,6 +34,15 @@ def build_prompt(title: str, content: str) -> str:
     )
 
 
+def parse_json_reply(text: str) -> dict:
+    """Extract the JSON object from the model reply"""
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end <= start:
+        raise ValueError(f"No JSON object found in model reply: {text[:200]!r}")
+    return json.loads(text[start : end + 1])
+
+
 def classify_document(event: dict) -> dict:
     """Classify a document using Bedrock LLM.
 
