@@ -100,12 +100,50 @@ List the key points you'd convey to a client's VP of Engineering who approved th
 The pipeline trusts the LLM's JSON output without validation. How would you validate extracted fields against a schema? How would you handle extraction failures — retry, dead-letter queue, or flag for human review? What's your strategy?
 
 **Your answer:**
+(These checks can run in the Validate step in question 6-shared)
+
+The code today: no schema. The model’s JSON is saved with no checks.
+
+What to change:
+
+  Schema Check: Define one Pydantic(already installed) schema per document type, then validate every extraction against it.
+
+  Business rules: checks for values that are valid alone but impossible together (e.g. a compliance deadline before the document date).
+
+The code today: no failure handling. Any step fails, the whole document fails.
+
+What to change: 
+
+* Bedrock throttled/timed out: retry with backoff (see question 4).
+* Reply is not valid JSON: retry once with a stricter prompt.
+* Valid JSON that fails the schema or a rule: save it with a mark “needs review,” send it to a review queue, and count it with a metric with an alarm.
+* Low confidence: send it to human review.
+
+Result: nothing is silently dropped, every result says whether it passed validation.
+
 
 ### DE-2. Pipeline at Scale
 
 This processes one document per Step Functions execution. Design a batch pipeline that handles 100,000 documents per day. What changes to the Step Functions architecture? Where would you parallelize, and where are the bottlenecks?
 
 **Your answer:**
+The code today: one Step Functions run per upload, using Standard workflows.
+
+* Each document makes two Bedrock calls (Classify and Extract)
+
+What to change:
+
+* Buffer in SQS: put S3 events into an SQS queue, so a spike waits in the queue instead of failing.
+* Batch process: a Step Functions Distributed Map reads a batch of documents and runs them in parallel, with a MaxConcurrency limit set below the Bedrock quota.
+* Cheaper workflows: use Express workflows for each document (Standard workflows, used today, charge for every step).
+* Fewer model calls: combine Classify and Extract into one Bedrock call, or use Bedrock batch inference (sends many requests in bulk) for documents that aren’t urgent.
+
+Bottleneck → Solution:
+
+* Bedrock requests and tokens per minute → concurrency limit, backoff retries, quota increase request.
+* Lambda concurrent executions → reserved concurrency for the pipeline.
+* Step Functions cost /limits → Express workflows, Distributed Map.
+
 
 ### DE-3. Observability & Data Lineage
 
