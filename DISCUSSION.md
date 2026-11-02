@@ -138,9 +138,8 @@ Consider security, error handling, observability, testing, CI/CD, and infrastruc
 
 * Quality: a labelled test set to check accuracy before prompt or model changes
 * Environments: separate dev, test, prod.
-* Housekeeping:  S3 lifecycle rule (versioning keeps old copies forever). 
-
-            Faster Docker builds: install packages before copying code, and remove --no-cache.
+* Housekeeping: S3 lifecycle rule (versioning keeps old copies forever).
+* Faster Docker builds: install packages before copying code, and remove --no-cache.
 
 
 
