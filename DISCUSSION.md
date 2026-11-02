@@ -39,6 +39,39 @@ How would you improve the classification prompt to handle ambiguous documents th
 How would you handle Bedrock throttling (429 errors) in a production pipeline? What retry strategy would you implement, and how would it interact with Step Functions' built-in error handling?
 
 **Your answer:**
+The code today:
+
+* Layer 1 (inside the Lambda): the Bedrock client in “aws.py” tries up to 3 times in “adaptive” mode 
+* Layer 2 (Step Functions): the state machine has no Retry or Catch →one throttle fails the whole document.
+
+What to change:
+
+* Retry on Classify and Extract: wait longer each time (2s, 4s, 8s…, up to 5 retries) 
+
+                  with a random extra wait so all documents don’t retry at the same moment (exponential backoff and jitter).
+
+* Catch: anything that still fails goes to a failure path (dead letter queue with an alert).
+
+    "Classify":{  
+
+      ...  
+
+      "Retry": [ ... ],
+
+      "Catch": [ ... ],
+
+      "Next": "Extract" 
+
+    }
+
+The problem is 2 layers multiplied:
+
+* 3 tries per run × 6 runs (first run + 5 retries) = can be 18 Bedrock calls for one document.
+* Fix at high volume: keep the client’s retries small
+
+              Limit how many documents run at once, below the Bedrock quota.
+
+
 
 ### 5. Enterprise Readiness
 
